@@ -1,9 +1,10 @@
 <?php
-
+include_once('../controle/controle_session.php');
 include('../conexao/connectDB.php');
 include('../controle/funcoes.php');
 include('cabecalho.php');
 include('menuSuperior.php');
+
 $infoDB = busca_info_db($conect, 'usuario');
 
 // Definindo a tabela

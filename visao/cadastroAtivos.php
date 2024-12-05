@@ -1,25 +1,69 @@
 <?php
+
 include('menuSuperior.php');
 include('cabecalho.php');
-?>
+include('../conexao/connectDB.php');
+include_once('../controle/controle_session.php');
+date_default_timezone_set('America/Sao_Paulo');
+
+// Consulta para pegar os ativos, incluindo o nome do usuário (via subconsulta)
+$sql = "SELECT c.userCadastro, c.idTipo, c.descricao, c.quantidadeAtivo, c.observacaoAtivo, c.idMarca, c.dataCadastro, c.statusAtivo,
+               COALESCE((SELECT p.nome FROM user p WHERE p.idUser = c.userCadastro), 'Usuário Desconhecido') AS nomeUser
+        FROM ativo c";
+
+$stmt = $conect->prepare($sql);
+$stmt->execute();
+$ativos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+?> 
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 <body>
     <div class="container mt-5">
         <h2 class="text-center mb-4">Cadastro de Ativos</h2>
-
+        
         <!-- Tabela de cadastro dos ativos -->
         <table class="table table-striped table-bordered table-hover">
             <thead class="thead-dark">
                 <tr>
                     <th scope="col">Descrição</th>
-                    <th scope="col">Tipo</th>
-                    <th scope="col">Marca</th>
+                    <th scope="col">Status</th>
                     <th scope="col">Data e Hora</th>
                     <th scope="col">Quantidade</th>
-                    <th scope="col">Usuário</th>
+                    <th scope="col">Usuário de Cadastro</th> <!-- Exibindo nome do usuário -->
                     <th scope="col">Observação</th>
+                    <th scope="col">Marca</th>
+                    <th scope="col">Tipo</th>
                 </tr>
             </thead>
+            <tbody> 
+    <?php
+    if (count($ativos) > 0) {
+        foreach ($ativos as $ativo) {
+            // Formatar a data e hora para pt-BR (dd/mm/yyyy HH:mm:ss)
+            $dataCadastroFormatada = $ativo['dataCadastro'];
+            echo "<tr>
+                    <td>{$ativo['descricao']}</td>
+                    <td>
+                        {$ativo['statusAtivo']} 
+                        <button class='btn btn-warning btn-sm status-btn' data-id='{$ativo['idTipo']}' data-status='{$ativo['statusAtivo']}'>
+                            " . ($ativo['statusAtivo'] == 'ativo' ? 'Inativar' : 'Ativar') . "
+                        </button>
+                    </td>
+                    <td>{$dataCadastroFormatada}</td>
+                    <td>{$ativo['quantidadeAtivo']}</td>
+                    <td>" . htmlspecialchars($ativo['nomeUser']) . "</td>
+                    <td>{$ativo['observacaoAtivo']}</td>
+                    <td>{$ativo['idMarca']}</td>
+                    <td>{$ativo['idTipo']}</td>
+                  </tr>";
+        }
+    } else {
+        echo "<tr><td colspan='8' class='text-center'>Nenhum ativo encontrado.</td></tr>";
+    }
+    ?>
+</tbody>
         </table>
 
         <!-- Botão para abrir o Modal de Cadastro -->
@@ -47,92 +91,183 @@ include('cabecalho.php');
                             <small class="form-text text-muted">Insira uma descrição do item</small>
                         </div>
                         <div class="mb-3">
+                            <label class="form-label" for="statusAtivo">Status:</label>
+                            <select class="form-control" name="statusAtivo" id="statusAtivo" required>
+                                <option value="">Selecione o status</option>
+                                <option value="ativo">Ativo</option>
+                                <option value="inativo">Inativo</option>
+                            </select>
+                            <small class="form-text text-muted">Selecione o status do ativo</small>
+                        </div>
+                        <div class="mb-3">
                             <label class="form-label" for="tipo">Tipo:</label>
-                            <input type="text" class="form-control" name="tipo" id="tipo" required>
-                            <small class="form-text text-muted">Insira o tipo do item</small>
+                            <select class="form-control" name="tipo" id="tipo" required>
+                                <!-- Tipos serão carregados via AJAX -->
+                            </select>
+                            <small class="form-text text-muted">Escolha o tipo do item</small>
                         </div>
                         <div class="mb-3">
                             <label class="form-label" for="marca">Marca:</label>
-                            <input type="text" class="form-control" name="marca" id="marca" required>
-                            <small class="form-text text-muted">Insira a marca do item</small>
+                            <select class="form-control" name="marca" id="marca" required>
+                                <!-- Marcas serão carregadas via AJAX -->
+                            </select>
+                            <small class="form-text text-muted">Escolha a marca do item</small>
                         </div>
                         <div class="mb-3">
                             <label class="form-label" for="obs">Observação:</label>
                             <input type="text" class="form-control" name="obs" id="obs">
                             <small class="form-text text-muted">Insira observações do item</small>
                         </div>
-                        <div class="mb-3">
+                        <div hidden class="mb-3">
                             <label class="form-label" for="time">Data e Hora:</label>
-                            <input type="text" class="form-control" name="time" id="time" value="" disabled>
+                            <input hidden type="text" class="form-control" name="time" id="time" value=""/>
                         </div>
                         <div class="mb-3">
                             <label class="form-label" for="qnt">Quantidade:</label>
                             <input type="number" class="form-control" name="qnt" id="qnt" required>
-                            <small class="form-text text-muted">Insira a quantidade deste item</small>
+                            <small class="form-text text-muted">Quantos itens do tipo selecionado você tem?</small>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label" for="user">Usuário de cadastro:</label>
-                            <input type="text" class="form-control" name="user" id="user" disabled>
+                        <div hidden class="mb-3">
+                            <label class="form-label" for="userCadastro">Usuário Cadastro:</label>
+                            <input type="hidden"id="datacad" value = "<?php echo date("d/m/Y H:i:s");?>">
+                            <input type="text" class="form-control" name="userCadastro" id="userCadastro" value="<?php echo $_SESSION['userId']; ?>" readonly>
                         </div>
-                        <button type="button" id="btnCadastrar" class="btn btn-primary">Cadastrar</button>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                            <button type="button" class="btn btn-primary" id="btnCadastrar">Cadastrar</button>
+                        </div>
                     </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Inclusão do Bootstrap -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-document.getElementById('btnCadastrar').addEventListener('click', function(event) {
+    $(document).ready(function() {
+        // Carregar tipos
+        $.ajax({
+            url: '../controle/cadastroAtivos.php', // Rota para buscar os tipos
+            method: 'POST',
+            data: { action: 'getTipos' },
+            success: function(data) {
+                var tipos = JSON.parse(data);
+                if (tipos.length > 0) {
+                    tipos.forEach(function(tipo) {
+                        $('#tipo').append(`<option value="${tipo.idTipo}">${tipo.descricaoTipo}</option>`);
+                    });
+                } else {
+                    $('#tipo').append('<option value="">Nenhum tipo encontrado</option>');
+                }
+            },
+            error: function() {
+                alert('Erro ao carregar os tipos');
+            }
+        });
+           
+        // Carregar marcas
+        $.ajax({
+            url: '../controle/cadastroAtivos.php', // Rota para buscar as marcas
+            method: 'POST',
+            data: { action: 'getMarcas' },
+            success: function(data) {
+                var marcas = JSON.parse(data);
+                if (marcas.length > 0) {
+                    marcas.forEach(function(marca) {
+                        $('#marca').append(`<option value="${marca.idMarca}">${marca.descricaoMarca}</option>`);
+                    });
+                } else {
+                    $('#marca').append('<option value="">Nenhuma marca encontrada</option>');
+                }
+            },
+            error: function() {
+                alert('Erro ao carregar as marcas');
+            }
+        });
+
+        document.getElementById('btnCadastrar').addEventListener('click', function(event) {
     event.preventDefault();
 
-    var formData = new FormData();
-    formData.append('descricao', document.getElementById('descricao').value);
-    formData.append('statusAtivo', 'ativo');  // Assumindo que o status é "ativo" por padrão
-    formData.append('quantidadeAtivo', document.getElementById('qnt').value);
-    formData.append('observacaoAtivo', document.getElementById('obs').value);
-    formData.append('dataCadastro', new Date().toISOString().split('T')[0]);  // Data de hoje
-    formData.append('idMarca', document.getElementById('marca').value);  // A marca será o texto, você pode alterar conforme sua necessidade
-    formData.append('idTipo', document.getElementById('tipo').value);  // O tipo será o texto, pode ser alterado para ID se for o caso
-    formData.append('userCadastro', '1');  // Usuário de cadastro, pode ser fixo ou dinâmico
-    formData.append('action', 'cadastroAtivo');  // Ação para indicar que é um cadastro de ativo
+    
+    const descricao = document.getElementById('descricao').value.trim();
+    const statusAtivo = document.getElementById('statusAtivo').value.trim();
+    const quantidadeAtivo = parseInt(document.getElementById('qnt').value.trim(), 10);
+    const marca = document.getElementById('marca').value.trim();
+    const tipo = document.getElementById('tipo').value.trim();
+    const observacao = document.getElementById('obs').value.trim();
+    const userCadastro = document.getElementById('userCadastro').value.trim();
+    const time = document.getElementById('datacad').value.trim();
 
-    fetch('../controle/cadastroAtivos.php', {
+    //debug
+    console.log({ descricao, statusAtivo, quantidadeAtivo, marca, tipo, observacao, userCadastro });
+
+    // Validar campos 
+    if (!descricao || !statusAtivo || !quantidadeAtivo || !tipo || !marca || !userCadastro) {
+        alert('Preencha todos os campos obrigatórios!');
+        return;
+    }
+
+    // Enviar dados via AJAX
+    $.ajax({
+        url: '../controle/cadastroAtivos.php',
         method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        alert(data.message); // Exibe a mensagem retornada do backend
-        if (data.status === 'sucesso') {
-            // Resetar o formulário
-            document.getElementById('cadastroForm').reset();
-
-            // Fechar o modal programaticamente usando a API do Bootstrap
-            var modalElement = document.getElementById('modalAtivos'); // Referencia o modal
-            var modal = bootstrap.Modal.getInstance(modalElement); // Obtém a instância atual do modal
-            modal.hide(); // Fecha o modal
-
-            // Forçar a remoção do backdrop se necessário
-            setTimeout(() => {
-                // Remover manualmente o backdrop
-                var backdrop = document.querySelector('.modal-backdrop');
-                if (backdrop) {
-                    backdrop.remove();
-                }
-            }, 300); // Atraso de 300ms para garantir que o modal seja fechado primeiro
+        data: {
+            action: 'cadastroAtivo',
+            descricao: descricao,
+            statusAtivo: statusAtivo,
+            quantidadeAtivo: quantidadeAtivo,
+            observacaoAtivo: observacao,
+            userCadastro: userCadastro,
+            idTipo: tipo,
+            idMarca: marca,
+            dataCadastro: time 
+        },
+        success: function(response) {
+            alert('Ativo cadastrado com sucesso!');
+            window.location.reload();
+        },
+        error: function() {
+            alert('Erro ao cadastrar ativo');
         }
-    })
-    .catch(error => {
-        console.error('Erro ao fazer requisição:', error);
     });
 });
+});
 
-    </script>
+$(document).on('click', '.status-btn', function() {
+    var ativoId = $(this).data('id');
+    var statusAtual = $(this).data('status');
+    var novoStatus = statusAtual == 'ativo' ? 'inativo' : 'ativo';
+
+    var $botao = $(this);
+
+    $.ajax({
+        url: '../controle/cadastroAtivos.php',
+        method: 'POST',
+        data: {
+            action: 'alterarStatus',
+            idTipo: ativoId,
+            statusAtivo: novoStatus
+        },
+        success: function(response) {
+            var data = JSON.parse(response);
+
+            if (data.status === 'sucesso') {
+               
+                $botao.text(novoStatus === 'ativo' ? 'Inativar' : 'Ativar');
+                $botao.data('status', novoStatus);
+
+                
+                $botao.closest('td').contents().filter(function() {
+                    return this.nodeType === Node.TEXT_NODE; 
+                }).first().replaceWith(novoStatus + " "); 
+            } else {
+                alert('Erro ao alterar o status do ativo: ' + data.message);
+            }
+        },
+        error: function() {
+            alert('Erro na comunicação com o servidor.');
+        }
+    });
+});
+</script>
 </body>
