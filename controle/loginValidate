@@ -1,0 +1,51 @@
+<?php
+// Inclui o arquivo de conexão
+include '../conexao/connectDB.php';
+
+// Inicia a sessão (se ainda não foi iniciada)
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Captura os dados do formulário
+$usuario = $_POST['usuario'] ?? '';
+$senha = $_POST['senha'] ?? '';
+
+// Verifica se os campos estão vazios
+if (empty($usuario) || empty($senha)) {
+    echo json_encode(['status' => 'erro', 'message' => 'Usuário e senha são obrigatórios.']);
+    exit();
+}
+
+try {
+    // Busca o usuário no banco de dados
+    $sql = "SELECT * FROM user WHERE usuario = :usuario LIMIT 1";
+    $stmt = $conect->prepare($sql);
+    $stmt->bindParam(':usuario', $usuario);
+    $stmt->execute();
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    // Verifica a senha
+    if ($user && password_verify($senha, $user['senha'])) {
+        // Define as variáveis de sessão
+        $_SESSION['userId'] = $user['idUser'];
+        $_SESSION['user'] = $user['nome'];
+        $_SESSION['userTurma'] = $user['turma'];
+        $_SESSION['admin'] = $user['admin'];
+        $_SESSION['login_ok'] = true;
+        $_SESSION['controle_login'] = true;
+
+        // Retorna sucesso
+        echo json_encode([
+            'status' => 'sucesso',
+            'message' => 'Login bem-sucedido!',
+        ]);
+    } else {
+        // Senha incorreta ou usuário não encontrado
+        echo json_encode(['status' => 'erro', 'message' => 'Usuário ou senha inválidos.']);
+    }
+} catch (PDOException $e) {
+    // Erro no banco de dados
+    echo json_encode(['status' => 'erro', 'message' => 'Erro ao processar o login.']);
+}
+?>

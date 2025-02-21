@@ -11,10 +11,13 @@ if ($action === 'cadastro') {
     $nome = $_POST['nome'] ?? '';
     $usuario = $_POST['novoUsuario'] ?? '';
     $turma = $_POST['turma'] ?? '';
-    $senha = $_POST['novaSenha'] ?? ''; // Senha do usuário
+    $senha = $_POST['novaSenha'] ?? ''; 
+
     
     // Criptografa a senha 
     $senha_hash = password_hash($senha, PASSWORD_DEFAULT);
+
+ 
     
     // Verifica se o nome de usuário já existe no banco de dados
     $stmt = $conect->prepare("SELECT * FROM user WHERE usuario = :usuario");
@@ -52,26 +55,26 @@ if ($action === 'login') {
         exit();
     }
 
-    // Verifica se o nome de usuário existe no banco de dados
+    
     $stmt = $conect->prepare("SELECT * FROM user WHERE usuario = :usuario LIMIT 1");
     $stmt->bindParam(':usuario', $usuario);
     $stmt->execute();
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if ($user) {
-        // Senha está correta?
+        
         if (password_verify($senha, $user['senha'])) {
-            // Login bem-sucedido - cria sessão
+            
             $_SESSION['userId'] = $user['idUser'];
-            $_SESSION['user'] = $user['nome'];  // Nome do usuário que será usado em outras páginas
-            $_SESSION['userTurma'] = $user['turma'];  // Exemplo de como salvar outras informações (turma, etc.)
-
+            $_SESSION['user'] = $user['nome'];  
+            $_SESSION['userTurma'] = $user['turma'];  
+            $_SESSION['admin'] = $user['admin'];
             $_SESSION['login_ok']=true;
             $_SESSION['controle_login']=true;
             echo json_encode([
                 'status' => 'sucesso', 
                 'message' => 'Login bem-sucedido!', 
-                'redirect' => '../visao/listarUsuarios.php' // Redireciona para a página principal após login
+                'redirect' => '../visao/listarUsuarios.php'
             ]);
         } else {
             // Senha incorreta

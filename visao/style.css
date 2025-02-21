@@ -21,8 +21,8 @@
 }
 
 .nav-link {
-    background-color: #444;   
-    color: white;
+   /* background-color: #444;  
+    color: white;*/
     cursor: pointer;
     text-align: center;
     white-space: nowrap;
@@ -47,4 +47,6 @@
     background-color: #ddd; 
 }
 
-
+#img2{
+    margin-right: 80px;
+}
